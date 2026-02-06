@@ -12,8 +12,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="bg-[#FFFDE7] antialiased">
-        {/* 모든 디자인 요소는 page.tsx에서 관리하므로 여기서는 children만 렌더링합니다 */}
+      <body className="bg-[#FFFDE7] antialiased break-keep">
+        {/* 모든 레이아웃과 메뉴는 page.tsx에서 통합 관리합니다 */}
         {children}
       </body>
     </html>
