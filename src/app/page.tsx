@@ -18,7 +18,7 @@ function HomeContent() {
   const [searchName, setSearchName] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
-  // 1. 데이터 초기 로드 및 실시간 동기화
+  // 1. 데이터 로드: base_points 컬럼을 정확히 호출합니다.
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true)
@@ -26,7 +26,7 @@ function HomeContent() {
       if (acts) setActivities(acts)
       
       if (isAdminView || mode === 'hq' || mode === 'guide') await fetchPending()
-      await fetchRankings() // 랭킹 데이터를 가져와서 합산 처리
+      await fetchRankings()
       setIsLoading(false)
     }
     fetchData()
@@ -38,19 +38,20 @@ function HomeContent() {
   }
 
   const fetchRankings = async () => {
-    const { data, error } = await supabase
+    // ⚠️ [수정] points -> base_points로 컬럼명 매칭
+    const { data } = await supabase
       .from('activity_reports')
-      .select('user_name, activity_types(points)')
+      .select('user_name, activity_types(base_points)')
       .eq('status', 'approved')
 
     if (data && data.length > 0) {
       const aggregate = data.reduce((acc: any, curr: any) => {
         const name = curr.user_name?.trim() || '익명'
-        // 수파베이스 조인 데이터가 객체{} 또는 배열[]로 오는 모든 경우를 대비한 방어 로직
-        const rawPoints = curr.activity_types
-        const points = Array.isArray(rawPoints) 
-          ? (rawPoints[0]?.points || 10) 
-          : (rawPoints?.points || 10)
+        const rawData = curr.activity_types
+        // 수파베이스 조인 결과가 배열인 경우와 객체인 경우 모두 대응
+        const points = Array.isArray(rawData) 
+          ? (rawData[0]?.base_points || 10) 
+          : (rawData?.base_points || 10)
         
         acc[name] = (acc[name] || 0) + points
         return acc
@@ -66,7 +67,7 @@ function HomeContent() {
     }
   }
 
-  // 2. 실시간 검색 필터 (모바일 엔터 문제 해결)
+  // 🔍 실시간 검색 필터: 공백 무시 로직 강화
   const searchedUser = useMemo(() => {
     const target = searchName.trim().replace(/\s/g, '')
     if (!target) return null
@@ -80,11 +81,7 @@ function HomeContent() {
 
   const handleApprove = async (id: number) => {
     const { error } = await supabase.from('activity_reports').update({ status: 'approved' }).eq('id', id)
-    if (!error) { 
-      alert('✅ 승인 완료!'); 
-      fetchPending(); 
-      fetchRankings(); 
-    }
+    if (!error) { alert('✅ 승인 완료!'); fetchPending(); fetchRankings(); }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,7 +97,6 @@ function HomeContent() {
     return { title: '소중한 씨앗 시민 ✨', color: 'bg-orange-100 text-orange-700' }
   }
 
-  // --- 통합 헤더 (운영본부 하위 3개 메뉴 완벽 연동) ---
   const Header = () => {
     const isHQActive = mode === 'hq' || mode === 'guide' || mode === 'vision' || isAdminView;
     return (
@@ -130,40 +126,35 @@ function HomeContent() {
     )
   }
 
-  // --- [화면 1] 연대 백서 (상세 비전 복원) ---
+  // --- [화면 1] 연대 백서: 상세 내용 복원 ---
   if (mode === 'vision') return (
     <main className="min-h-screen bg-white break-keep"><Header />
       <div className="max-w-3xl mx-auto py-16 px-6 leading-relaxed">
         <h2 className="text-3xl font-black text-center mb-12 italic text-[#FF8A65]">"기록되지 않은 시민의 힘은<br/>기억되지 않습니다"</h2>
         <div className="space-y-12 text-gray-700">
           <section className="border-l-4 border-[#FF8A65] pl-6">
-            <h3 className="text-xl font-bold mb-4 text-[#5D4037]">⚖️ 보이지 않는 헌신의 주인공을 위하여</h3>
-            <p className="text-lg">현장에서 묵묵히 정성을 다하신 시민님들의 발걸음을 이제 디지털 데이터로 영구히 보존합니다. 이는 참여연대의 역사가 단 몇 명의 대표자가 아닌, 현장을 지킨 수만 명의 시민에 의해 쓰여졌음을 증명하는 가장 확실한 근거가 될 것입니다.</p>
+            <h3 className="text-xl font-bold mb-4 text-[#5D4037]">⚖️ 보이지 않는 헌신의 역사를 기록합니다</h3>
+            <p className="text-lg">현장에서 묵묵히 정성을 다하신 시민님들의 발걸음을 이제 디지털 데이터로 영구히 보존합니다. 이는 참여연대의 역사가 단 몇 명의 대표자가 아닌, 현장을 지킨 수만 명의 시민에 의해 쓰여졌음을 증명하는 가장 확실한 기록관이 될 것입니다.</p>
           </section>
           <section className="border-l-4 border-blue-500 pl-6">
-            <h3 className="text-xl font-bold mb-4 text-[#5D4037]">📈 더 큰 지지와 후원의 강력한 근거</h3>
-            <p className="text-lg">막연한 호소보다 <strong>"이번 한 달간 500명의 시민이 1,200시간 연대했다"</strong>는 투명한 숫자는 우리 조직의 역동성을 증명하는 무기가 됩니다. 이는 후원자들에게 신뢰를 주고, 우리가 더 당당하게 조직의 내일을 위한 후원을 요청할 수 있는 전략적 지표가 됩니다.</p>
+            <h3 className="text-xl font-bold mb-4 text-[#5D4037]">📈 숫자로 증명하는 시민의 힘과 후원의 가치</h3>
+            <p className="text-lg">막연한 호소보다 <strong>"이번 한 달간 수백 명의 시민이 연대했다"</strong>는 투명한 숫자는 참여연대의 역동성을 증명하는 무기가 됩니다. 이 기록은 후원자들에게 신뢰를 주고, 우리가 더 당당하게 조직의 내일을 위한 후원을 요청할 수 있는 전략적 지표가 됩니다.</p>
           </section>
-          <div className="bg-orange-50 p-8 rounded-[40px] text-center shadow-inner">
-            <h4 className="font-black text-lg mb-4 text-[#FF7043]">🌱 경쟁이 아닌 함께 커가는 숲</h4>
-            <p className="text-sm">서열을 매기는 경쟁이 아닙니다. 활동의 깊이에 따라 <strong>씨앗 → 새싹 → 나무</strong>로 성장하는 즐거움을 나누며, 우리는 더 큰 시민의 숲을 이룰 것입니다.</p>
-          </div>
         </div>
       </div>
     </main>
   )
 
-  // --- [화면 2] 함께 걷는 길 (시상대 + 실시간 검색 강화) ---
+  // --- [화면 2] 함께 걷는 길: 시상대 + 실시간 검색 ---
   if (mode === 'ranking') return (
     <main className="min-h-screen bg-[#FDFCFB] break-keep"><Header />
       <div className="max-w-2xl mx-auto py-10 px-6 text-center">
         <h2 className="text-2xl font-black mb-10 text-[#5D4037]">🏆 오늘의 연대 길잡이</h2>
         
-        {/* 상위 3인 리더보드 */}
         <div className="grid grid-cols-3 gap-2 mb-12 items-end">
            {[1, 0, 2].map((idx) => {
              const r = rankings[idx];
-             if (!r && isLoading) return <div key={idx} className="h-32 bg-gray-50 rounded-t-[30px] animate-pulse flex items-center justify-center text-[10px] text-gray-300">확인 중...</div>;
+             if (!r && isLoading) return <div key={idx} className="h-32 bg-gray-50 rounded-t-[30px] animate-pulse flex items-center justify-center text-[10px] text-gray-300">로딩중...</div>;
              if (!r) return <div key={idx} className="h-10 bg-gray-50 rounded-2xl opacity-20"></div>;
              return (
                <div key={idx} className={`p-4 rounded-t-[30px] shadow-sm ${idx === 0 ? 'bg-yellow-50 h-44 border-t-4 border-yellow-200' : 'bg-white h-32 border border-gray-100'}`}>
@@ -176,19 +167,18 @@ function HomeContent() {
         </div>
 
         <div className="mb-6">
-          <label className="text-[10px] font-black text-gray-400 mb-2 block uppercase tracking-widest italic">Find My Solidarity Record</label>
           <input 
             type="text" 
-            placeholder="성함을 입력하세요 (실시간 확인)" 
+            placeholder="성함을 입력해 내 기록을 확인하세요" 
             value={searchName} 
             onChange={(e) => setSearchName(e.target.value)} 
             className="w-full p-4 rounded-full border-2 border-[#FFE0B2] shadow-lg text-center font-bold outline-none focus:border-[#FF7043]" 
           />
-          <p className="text-[11px] text-gray-400 mt-3 font-bold">💡 성함을 입력하시면 엔터 없이 즉시 검색됩니다.</p>
+          <p className="text-[11px] text-gray-400 mt-3 font-bold">💡 입력 즉시 자동으로 검색됩니다.</p>
         </div>
 
         {searchedUser ? (
-          <div className="bg-[#5D4037] p-8 rounded-[40px] text-white shadow-2xl mt-6 animate-in zoom-in duration-300">
+          <div className="bg-[#5D4037] p-8 rounded-[40px] text-white shadow-2xl mt-6 animate-in zoom-in duration-300 text-center">
             <h4 className="text-2xl font-black">{searchedUser.name} 님</h4>
             <p className={`inline-block px-4 py-1 rounded-full font-bold text-sm mt-3 ${getBadge(searchedUser.point).color}`}>{getBadge(searchedUser.point).title}</p>
             <div className="mt-8 grid grid-cols-2 divide-x divide-white/10 border-t border-white/10 pt-6">
@@ -197,25 +187,25 @@ function HomeContent() {
             </div>
           </div>
         ) : searchName && !isLoading ? (
-          <div className="text-gray-300 font-bold py-10">연대의 기록을 찾고 있습니다... (승인 전이거나 오타 확인)</div>
+          <div className="text-gray-300 font-bold py-10">연대의 기록을 찾고 있습니다...</div>
         ) : null}
       </div>
     </main>
   )
 
-  // --- [화면 3] 가이드 및 승인 관리 ---
+  // --- [운영본부 / 가이드 / 승인] ---
   if (isAdminView || mode === 'hq' || mode === 'guide') return (
     <main className="min-h-screen bg-gray-50 break-keep"><Header />
       <div className="max-w-4xl mx-auto py-10 px-4">
         {mode === 'guide' ? (
-          <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 font-bold text-gray-600 space-y-6">
-            <h2 className="text-2xl font-black text-[#5D4037]">📖 사용 방법 안내</h2>
-            <p>1. 첫 화면에서 본인의 성함과 참여한 활동 내용을 선택하고 [인증 완료]를 누릅니다.</p>
-            <p>2. 운영본부 승인 후 [함께걷는길] 메뉴에서 본인의 성장 등급과 순위를 확인하세요.</p>
+          <div className="bg-white p-10 rounded-[40px] shadow-xl border border-gray-100 font-bold text-gray-600 space-y-6 text-sm">
+            <h2 className="text-2xl font-black text-[#5D4037]">📖 이용 가이드</h2>
+            <p>1. [활동보고]에서 성함과 활동 내용을 선택하고 [인증 완료]를 누릅니다.</p>
+            <p>2. 운영본부 승인 후 [함께걷는길] 메뉴에서 본인의 성장 등급과 순위를 확인하실 수 있습니다.</p>
           </div>
         ) : (
           <div className="bg-white rounded-[40px] shadow-xl overflow-hidden border border-gray-100">
-            <div className="bg-[#5D4037] p-5 text-white flex justify-between items-center"><h2 className="font-black">⚙️ 실시간 승인 관리</h2><span className="text-xs opacity-50">대기: {pendingReports.length}건</span></div>
+            <div className="bg-[#5D4037] p-5 text-white flex justify-between items-center"><h2 className="font-black">⚙️ 실시간 승인 관리</h2></div>
             <table className="w-full text-left text-sm">
               <thead className="bg-gray-50 text-[10px] text-gray-400 uppercase tracking-widest">
                 <tr><th className="p-5">활동가</th><th className="p-5">활동 내용</th><th className="p-5 text-center">처리</th></tr>
@@ -226,7 +216,7 @@ function HomeContent() {
                     <tr key={r.id} className="hover:bg-orange-50/50 transition-colors">
                       <td className="p-5 font-bold">{r.user_name}</td>
                       <td className="p-5 text-gray-500">{r.activity_types?.name}</td>
-                      <td className="p-5 text-center"><button onClick={() => handleApprove(r.id)} className="bg-[#00C853] text-white px-4 py-2 rounded-xl font-black text-xs hover:shadow-lg">최종 승인</button></td>
+                      <td className="p-5 text-center"><button onClick={() => handleApprove(r.id)} className="bg-[#00C853] text-white px-4 py-2 rounded-xl font-black text-xs">최종 승인</button></td>
                     </tr>
                   ))
                 }
@@ -243,12 +233,12 @@ function HomeContent() {
     <main className="min-h-screen bg-[#FFFDE7] break-keep"><Header />
       <div className="py-20 text-center bg-[#FFE0B2] text-[#5D4037] px-6">
         <h1 className="text-4xl font-black mb-4 tracking-tighter">참여연대 시민연결</h1>
-        <p className="opacity-80 font-bold text-sm">기록되지 않은 시민의 힘은 기억되지 않습니다.</p>
+        <p className="opacity-80 font-bold text-sm italic">기록되지 않은 시민의 힘은 기억되지 않습니다.</p>
       </div>
       <div className="max-w-md mx-auto -mt-10 px-6 pb-20">
         <div className="bg-white p-10 rounded-[50px] shadow-2xl border-4 border-[#FF8A65]">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <input type="text" placeholder="성함을 입력하세요" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-lg outline-none focus:border-[#FF8A65] transition-all" />
+            <input type="text" placeholder="성함을 입력하세요" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-lg outline-none focus:border-[#FF8A65]" />
             <select value={selectedActivity} onChange={(e) => setSelectedActivity(e.target.value)} className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold text-lg appearance-none">
               <option value="">활동을 선택하세요</option>
               {activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
