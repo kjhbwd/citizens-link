@@ -1,19 +1,14 @@
 import './globals.css'
 
 export const metadata = {
-  title: '참여연대 시민연결 | 연대와 공존의 기록',
-  description: '따뜻한 연대로 만드는 공존의 세상, 참여연대 시민연결 시스템입니다.',
+  title: '참여연대 시민연결',
+  description: '시민의 연대를 기록하는 시스템',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
       <body className="bg-[#FFFDE7] antialiased break-keep">
-        {/* 모든 메뉴와 디자인은 page.tsx에서 통합 관리합니다 */}
         {children}
       </body>
     </html>
