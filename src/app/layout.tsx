@@ -13,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="bg-[#FFFDE7] antialiased break-keep">
-        {/* 모든 레이아웃과 메뉴는 page.tsx에서 통합 관리합니다 */}
+        {/* 모든 메뉴와 디자인은 page.tsx에서 통합 관리합니다 */}
         {children}
       </body>
     </html>
